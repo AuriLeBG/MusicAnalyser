@@ -37,7 +37,7 @@ target/
 .DS_Store
 
 # Application Data (NE JAMAIS COMMIT LE CSV KAGGLE)
-data/
+#data/
 !data/.gitkeep
 
 # Docker volumes locaux (si tu en as mis dans le dossier)
