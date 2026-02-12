@@ -68,11 +68,33 @@ services:
       - '3000:3000' # UI, credentials: admin / admin
       - '4318:4318' # OTel collector HTTP port
 
+  # --- BACKEND SPRING BOOT (HOT RELOAD) ---
+  backend:
+    container_name: music_backend
+    build:
+      context: ../backend/music-analyser-api
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/music-analyser-api:/app
+      - /app/.gradle
+    ports:
+      - "8080:8080" # Port API
+    environment:
+      # On passe les variables pour la BDD
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    depends_on:
+      - postgres
+      - clickhouse
+    networks:
+      - default
+
 networks:
   default:
     driver: bridge
     driver_opts:
-      com.docker.network.driver.mtu: "1400" # <-- ON AJOUTE ÇA
+      com.docker.network.driver.mtu: "1400"
 
 volumes:
   postgres_data:

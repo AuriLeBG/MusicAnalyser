@@ -36,8 +36,6 @@ try:
     print(f"object clickhouse : {client}")
     print("Connexion ClickHouse réussie !")
 
-    print("--- TODO: Coder l'import du CSV ici ---")
-
     # Création de la base de données si elle n'existe pas
     client.execute(f'CREATE DATABASE IF NOT EXISTS {DB_NAME}')
     
@@ -88,18 +86,9 @@ try:
             df['year'] = pd.to_numeric(df['year'], errors='coerce').fillna(0).astype(int)
             df['views'] = pd.to_numeric(df['views'], errors='coerce').fillna(0).astype(int)
             
-            # Insertion optimisée via Pandas
-           # Lecture
+            # Insertion Pandas
             df = pd.read_csv(CSV_FILE_PATH)
-            
-            # --- LE FIX EST ICI ---
-            # On force la colonne 'id' en string pour que ClickHouse soit content
             df['id'] = df['id'].astype(str)
-            
-            # Pour être sûr, on peut aussi forcer les autres champs texte s'ils sont ambigus
-            # df['title'] = df['title'].astype(str) 
-
-            # Nettoyage (votre code existant)
             df = df.fillna("") 
             df['year'] = pd.to_numeric(df['year'], errors='coerce').fillna(0).astype(int)
             df['views'] = pd.to_numeric(df['views'], errors='coerce').fillna(0).astype(int)
