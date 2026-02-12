@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # --- Base de données (Postgres) ---
+  postgres:
+    image: 'postgres:15'
+    container_name: music_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      # On persistera les données pour ne pas les perdre au reboot
+      - postgres_data:/var/lib/postgresql/data
+      # Script d'init SQL
+      - ./postgres:/docker-entrypoint-initdb.d
+
+  # --- Base de données Analytique (ClickHouse) ---
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: music_clickhouse
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${DB_USER}
+      CLICKHOUSE_PASSWORD: ${DB_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123" # Port HTTP
+      - "9000:9000" # Port Natif
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  # --- Data Loader (Python) ---
+  # Ce container s'allume, charge le CSV dans ClickHouse, et s'éteint.
+  data-loader:
+    image: python:3.9-slim
+    container_name: music_dataloader
+    working_dir: /app
+    volumes:
+      - ../data:/data          # On monte le dossier data
+      - ./data-loader:/app     # On monte le script python
+    depends_on:
+      - clickhouse
+      - postgres
+    environment:
+      DB_HOST_PG: postgres
+      DB_HOST_CH: clickhouse
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    # Installe les libs et lance le script
+    command: sh -c "pip install pandas clickhouse-driver psycopg2-binary && python import_script.py"
+
+  # --- Monitoring (Grafana + OTel) ---
+  grafana:
+    image: 'grafana/otel-lgtm:0.11.10'
+    container_name: music_grafana
+    ports:
+      - '3000:3000' # UI, credentials: admin / admin
+      - '4318:4318' # OTel collector HTTP port
+
+volumes:
+  postgres_data:
+  clickhouse_data:
