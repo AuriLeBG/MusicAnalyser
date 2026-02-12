@@ -55,7 +55,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
     # Installe les libs et lance le script
-    command: sh -c "pip install pandas clickhouse-driver psycopg2-binary && python import_script.py"
+    command: sh -c "pip install --default-timeout=100 pandas clickhouse-driver psycopg2-binary && python import_script.py"
+    networks:
+      - default
+    
 
   # --- Monitoring (Grafana + OTel) ---
   grafana:
@@ -64,6 +67,12 @@ services:
     ports:
       - '3000:3000' # UI, credentials: admin / admin
       - '4318:4318' # OTel collector HTTP port
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1400" # <-- ON AJOUTE ÇA
 
 volumes:
   postgres_data:
