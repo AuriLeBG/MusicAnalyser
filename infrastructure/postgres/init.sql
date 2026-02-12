@@ -1,6 +1,6 @@
 -- Création des tables référentielles (Catalogue)
 CREATE TABLE IF NOT EXISTS artists (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE
 );
 
