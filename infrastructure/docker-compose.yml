@@ -85,9 +85,15 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+      DB_HOST_PG: postgres
+      DB_HOST_CH: clickhouse
+
+      JAVA_TOOL_OPTIONS: "-Dmanagement.otlp.metrics.export.url=http://grafana:4318/v1/metrics -Dmanagement.opentelemetry.logging.export.otlp.endpoint=http://grafana:4318/v1/logs -Dmanagement.opentelemetry.tracing.export.otlp.endpoint=http://grafana:4318/v1/traces -Dmanagement.tracing.sampling.probability=1.0 -Dotel.exporter.otlp.endpoint=http://grafana:4318"
+
     depends_on:
       - postgres
       - clickhouse
+      - grafana
     networks:
       - default
 

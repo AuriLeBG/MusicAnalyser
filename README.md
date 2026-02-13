@@ -34,11 +34,11 @@ On réalisera un endpoint qui fail afin de voir les retries dans les traces.
 - [ ] schéma n tier
 - DATA LAYER
   - [ ] base de données Postgres SQL
-  - [ ] dataset volumineux (1M+ lignes)
-  - [ ] script d'import automatique dans la base de données (avec nettoyage si nécessaire)
+  - [X] dataset volumineux (1M+ lignes)
+  - [X] script d'import automatique dans la base de données (avec nettoyage si nécessaire)
 - BUSINESS LAYER
     - [ ] une API en Java Spring Boot qui requête le tier de donnée.
-    - [ ] une gestion d'utilisateur (basic) avec Spring Sécurité.
+    - [X] une gestion d'utilisateur (basic) avec Spring Sécurité.
     - [ ] le code métier écrit dans des `@Service`s Spring.
     - [ ] au moins un endpoint pour votre besoin utilisateur (ex: liste des films, recherche par auteur, etc).
     - [ ] un endpoint qui fail aléatoirement pour voir les retries dans les traces (peut être l'endpoint de votre API
@@ -49,11 +49,11 @@ On réalisera un endpoint qui fail afin de voir les retries dans les traces.
     - [ ] un front minimaliste pour visualiser la donnée via l'API
     - [ ] un chart d'analyses (trend, histogram, ...)
 - MONITORING
-  - [ ] opentelemetry intégré dans l'application
-    - [ ] logs par composants
-    - [ ] traces des appels HTTP
+  - [X] opentelemetry intégré dans l'application
+    - [X] logs par composants
+    - [X] traces des appels HTTP
     - [ ] métriques custom (ex: nombre d'utilisateurs, nombre de requêtes par endpoint, etc).
 - docker compose
-    - [ ] base de données Postgres SQL
-    - [ ] base de données Clickhouse pour l'analytics
-    - [ ] Grafana + OTEL collector 
+    - [X] base de données Postgres SQL
+    - [X] base de données Clickhouse pour l'analytics
+    - [X] Grafana + OTEL collector 
