@@ -74,6 +74,7 @@ services:
     build:
       context: ../backend/music-analyser-api
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ../backend/music-analyser-api:/app
       - /app/.gradle
