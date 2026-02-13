@@ -16,8 +16,13 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable) // Désactiver la protection CSRF
             .authorizeHttpRequests(auth -> auth // Autorisations
-                .requestMatchers("/api/**").permitAll() // Autoriser l'accès public à toutes les URLs commençant par /api/
-                .anyRequest().authenticated() // Pour tout le reste, demander une authentification
+                .requestMatchers(
+                        "/api/**",
+                        "/docs",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**"
+                        ).permitAll()
+                    .anyRequest().authenticated() // Pour tout le reste, demander une authentification
             );
 
         return http.build();
