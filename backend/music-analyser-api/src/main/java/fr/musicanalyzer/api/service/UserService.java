@@ -17,12 +17,11 @@ public class UserService {
     }
 
     public User registerUser(User user) {
-        // On encode le mot de passe avant de l'envoyer à Postgres
+        // hash password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        // On s'assure qu'un rôle par défaut est présent
         if (user.getRole() == null || user.getRole().isEmpty()) {
-            user.setRole("USER");
+            user.setRole("STD");
         }
 
         return userRepository.save(user);
