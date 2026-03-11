@@ -20,6 +20,10 @@ public class ArtistService {
         return artistRepository.findAll();
     }
 
+    public List<ArtistEntity> getArtistsBySearch(String search) {
+        return artistRepository.findByNameContainingIgnoreCase(search);
+    }
+
     // Méthode pour créer un artiste
     public ArtistEntity createArtist(String name) {
         ArtistEntity artist = new ArtistEntity();

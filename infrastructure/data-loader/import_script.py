@@ -102,7 +102,39 @@ try:
     else:
         print(f"La table contient déjà {row_count} lignes. Import ignoré.")
 
+    # ---------------------------------------------------------
+    # 4. Import des artistes dans PostgreSQL
+    # ---------------------------------------------------------
+    print("Import des artistes dans PostgreSQL...")
 
+    df_artists = pd.read_csv(CSV_FILE_PATH, usecols=['artist'])
+    df_artists = df_artists.dropna()
+    df_artists = df_artists[df_artists['artist'].str.strip() != '']
+    df_artists = df_artists.drop_duplicates(subset=['artist'])
+    artists = df_artists['artist'].str.strip().tolist()
+
+    pg_conn = psycopg2.connect(
+        host=DB_HOST_PG, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME
+    )
+    pg_cursor = pg_conn.cursor()
+
+    inserted = 0
+    skipped = 0
+    for name in artists:
+        pg_cursor.execute(
+            "INSERT INTO artists (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
+            (name,)
+        )
+        if pg_cursor.rowcount == 1:
+            inserted += 1
+        else:
+            skipped += 1
+
+    pg_conn.commit()
+    pg_cursor.close()
+    pg_conn.close()
+
+    print(f"Artistes insérés : {inserted}, ignorés (déjà présents) : {skipped}")
 
 except Exception as e:
     print(f"Erreur : {e}")

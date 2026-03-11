@@ -8,13 +8,29 @@ import '../models/analytics.dart';
 class ApiService {
   static const String _baseUrl = 'http://localhost:8080/api';
 
-  Future<List<Artist>> getArtists() async {
-    final response = await http.get(Uri.parse('$_baseUrl/artists'));
+  Future<List<Artist>> getArtists({String? search}) async {
+    final uri = search != null && search.isNotEmpty
+        ? Uri.parse('$_baseUrl/artists?search=${Uri.encodeQueryComponent(search)}')
+        : Uri.parse('$_baseUrl/artists');
+    final response = await http.get(uri);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((json) => Artist.fromJson(json)).toList();
     }
     throw Exception('Failed to load artists (${response.statusCode})');
+  }
+
+  Future<List<Song>> getSongsByArtist(int artistId,
+      {int page = 0, int size = 20}) async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/artists/$artistId/songs?page=$page&size=$size'),
+    );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final List<dynamic> content = data['content'] as List<dynamic>;
+      return content.map((json) => Song.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load songs for artist (${response.statusCode})');
   }
 
   Future<List<Favorite>> getFavorites({int userId = 1}) async {
