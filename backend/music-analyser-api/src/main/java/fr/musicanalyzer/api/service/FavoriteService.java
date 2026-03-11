@@ -7,6 +7,8 @@ import fr.musicanalyzer.api.model.User;
 import fr.musicanalyzer.api.repository.FavoriteRepository;
 import fr.musicanalyzer.api.repository.SongRepository;
 import fr.musicanalyzer.api.repository.UserRepository;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,10 +27,14 @@ public class FavoriteService {
 
     public FavoriteService(FavoriteRepository favoriteRepository,
                            UserRepository userRepository,
-                           SongRepository songRepository) {
+                           SongRepository songRepository,
+                           MeterRegistry meterRegistry) {
         this.favoriteRepository = favoriteRepository;
         this.userRepository = userRepository;
         this.songRepository = songRepository;
+        Gauge.builder("favorites.total", favoriteRepository, FavoriteRepository::count)
+                .description("Total number of favorites in database")
+                .register(meterRegistry);
     }
 
     public List<FavoriteEntity> getFavorites(Integer userId) {

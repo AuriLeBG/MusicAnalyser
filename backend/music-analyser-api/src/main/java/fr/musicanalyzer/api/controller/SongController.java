@@ -5,6 +5,8 @@ import fr.musicanalyzer.api.service.SongService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/songs")
 public class SongController {
@@ -13,6 +15,12 @@ public class SongController {
 
     public SongController(SongService songService) {
         this.songService = songService;
+    }
+
+    @GetMapping("/random-fail")
+    public Map<String, String> randomFail() {
+        String result = songService.randomFail();
+        return Map.of("status", result);
     }
 
     @GetMapping
