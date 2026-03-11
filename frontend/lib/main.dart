@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/artists_screen.dart';
 import 'screens/favorites_screen.dart';
+import 'screens/songs_screen.dart';
+import 'screens/analytics_screen.dart';
 
 void main() {
   runApp(const MusicAnalyserApp());
@@ -35,10 +37,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   static const List<Widget> _screens = [
     ArtistsScreen(),
+    SongsScreen(),
     FavoritesScreen(),
+    AnalyticsScreen(),
   ];
 
-  static const List<String> _titles = ['Artistes', 'Favoris'];
+  static const List<String> _titles = ['Artistes', 'Chansons', 'Favoris', 'Analytics'];
 
   void _onDestinationSelected(int index) {
     setState(() => _selectedIndex = index);
@@ -68,8 +72,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       label: Text('Artistes'),
                     ),
                     NavigationRailDestination(
+                      icon: Icon(Icons.music_note),
+                      label: Text('Chansons'),
+                    ),
+                    NavigationRailDestination(
                       icon: Icon(Icons.favorite),
                       label: Text('Favoris'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.bar_chart),
+                      label: Text('Analytics'),
                     ),
                   ],
                 ),
@@ -87,14 +99,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : BottomNavigationBar(
                   currentIndex: _selectedIndex,
                   onTap: _onDestinationSelected,
+                  type: BottomNavigationBarType.fixed,
                   items: const [
                     BottomNavigationBarItem(
                       icon: Icon(Icons.mic),
                       label: 'Artistes',
                     ),
                     BottomNavigationBarItem(
+                      icon: Icon(Icons.music_note),
+                      label: 'Chansons',
+                    ),
+                    BottomNavigationBarItem(
                       icon: Icon(Icons.favorite),
                       label: 'Favoris',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.bar_chart),
+                      label: 'Analytics',
                     ),
                   ],
                 ),
