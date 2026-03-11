@@ -97,6 +97,25 @@ services:
     networks:
       - default
 
+
+  frontend:
+    container_name: music_frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - ../frontend:/app
+    ports:
+      - "80:80"
+      - "8181:8181"  # Dart VM service (hot reload)
+    depends_on:
+      - backend
+    networks:
+      - default
+    stdin_open: true
+    tty: true
+
 networks:
   default:
     driver: bridge
