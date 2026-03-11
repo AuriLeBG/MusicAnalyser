@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS songs (
     title VARCHAR(255) NOT NULL,
     year INT,
     language VARCHAR(10),
-    artist_id INT REFERENCES artists(id)
+    artist_id BIGINT REFERENCES artists(id)
 );
 
 -- Index pour la performance 
