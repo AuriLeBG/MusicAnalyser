@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'screens/artists_screen.dart';
+import 'screens/favorites_screen.dart';
 
 void main() {
   runApp(const MusicAnalyserApp());
@@ -21,26 +23,44 @@ class MusicAnalyserApp extends StatelessWidget {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _selectedIndex = 0;
+
+  static const List<Widget> _screens = [
+    ArtistsScreen(),
+    FavoritesScreen(),
+  ];
+
+  static const List<String> _titles = ['Artistes', 'Favoris'];
+
+  void _onDestinationSelected(int index) {
+    setState(() => _selectedIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        bool isWideScreen = constraints.maxWidth > 600;
+        final bool isWideScreen = constraints.maxWidth > 600;
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Music Analyser 🎵'),
+            title: Text('Music Analyser — ${_titles[_selectedIndex]}'),
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           ),
           body: Row(
             children: [
               if (isWideScreen)
                 NavigationRail(
-                  selectedIndex: 0,
-                  onDestinationSelected: (int index) {},
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _onDestinationSelected,
                   labelType: NavigationRailLabelType.all,
                   destinations: const [
                     NavigationRailDestination(
@@ -54,26 +74,10 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               if (isWideScreen) const VerticalDivider(thickness: 1, width: 1),
-
               Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isWideScreen ? Icons.desktop_windows : Icons.smartphone,
-                        size: 100,
-                        color: Colors.deepPurple,
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        isWideScreen ? "Mode PC / Tablette" : "Mode Mobile",
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 15),
-                      const Text("TEST"),
-                    ],
-                  ),
+                child: IndexedStack(
+                  index: _selectedIndex,
+                  children: _screens,
                 ),
               ),
             ],
@@ -81,14 +85,16 @@ class DashboardScreen extends StatelessWidget {
           bottomNavigationBar: isWideScreen
               ? null
               : BottomNavigationBar(
+                  currentIndex: _selectedIndex,
+                  onTap: _onDestinationSelected,
                   items: const [
                     BottomNavigationBarItem(
                       icon: Icon(Icons.mic),
-                      label: "Artistes",
+                      label: 'Artistes',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.favorite),
-                      label: "Favoris",
+                      label: 'Favoris',
                     ),
                   ],
                 ),
