@@ -1,5 +1,6 @@
 import time
 import psycopg2
+from psycopg2.extras import execute_values
 import clickhouse_driver
 import os
 import pandas as pd
@@ -135,6 +136,55 @@ try:
     pg_conn.close()
 
     print(f"Artistes insérés : {inserted}, ignorés (déjà présents) : {skipped}")
+
+    # ---------------------------------------------------------
+    # 5. Import des chansons dans PostgreSQL
+    # ---------------------------------------------------------
+    print("Import des chansons dans PostgreSQL...")
+
+    pg_conn = psycopg2.connect(
+        host=DB_HOST_PG, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME
+    )
+    pg_cursor = pg_conn.cursor()
+
+    # Vérifier si songs est vide
+    pg_cursor.execute("SELECT COUNT(*) FROM songs")
+    songs_count = pg_cursor.fetchone()[0]
+
+    if songs_count == 0:
+        # Construire le dict {artist_name: artist_id}
+        pg_cursor.execute("SELECT id, name FROM artists")
+        artist_map = {name: aid for aid, name in pg_cursor.fetchall()}
+
+        df_songs = pd.read_csv(CSV_FILE_PATH, usecols=['title', 'year', 'language', 'artist'])
+        df_songs = df_songs.dropna(subset=['title', 'artist'])
+        df_songs['year'] = pd.to_numeric(df_songs['year'], errors='coerce').fillna(0).astype(int)
+        df_songs['language'] = df_songs['language'].fillna('').str[:10]
+        df_songs['title'] = df_songs['title'].str[:255]
+
+        rows = []
+        for _, row in df_songs.iterrows():
+            artist_id = artist_map.get(str(row['artist']).strip())
+            if artist_id is not None:
+                lang = row['language'] if row['language'] else None
+                year_val = int(row['year']) if row['year'] != 0 else None
+                rows.append((row['title'], year_val, lang, artist_id))
+
+        if rows:
+            execute_values(
+                pg_cursor,
+                "INSERT INTO songs (title, year, language, artist_id) VALUES %s ON CONFLICT DO NOTHING",
+                rows
+            )
+            pg_conn.commit()
+            print(f"Chansons insérées dans PostgreSQL : {len(rows)}")
+        else:
+            print("Aucune chanson à insérer.")
+    else:
+        print(f"La table songs contient déjà {songs_count} lignes. Import ignoré.")
+
+    pg_cursor.close()
+    pg_conn.close()
 
 except Exception as e:
     print(f"Erreur : {e}")

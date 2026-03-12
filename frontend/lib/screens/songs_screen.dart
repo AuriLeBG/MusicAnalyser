@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../main.dart' show kPrimary, kSecondary, kTextPri, kTextSec;
+import '../models/favorite.dart';
 import '../models/song.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../state/favorites_notifier.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/shared.dart';
 
@@ -16,6 +19,7 @@ class SongsScreen extends StatefulWidget {
 
 class _SongsScreenState extends State<SongsScreen> {
   final ApiService _api = ApiService();
+  final AuthService _auth = AuthService();
   List<Song>? _songs;
   String? _error;
   bool _loading = true;
@@ -35,7 +39,18 @@ class _SongsScreenState extends State<SongsScreen> {
   @override
   void initState() {
     super.initState();
+    FavoritesNotifier.instance.addListener(_onFavoritesChanged);
     _loadSongs();
+  }
+
+  @override
+  void dispose() {
+    FavoritesNotifier.instance.removeListener(_onFavoritesChanged);
+    super.dispose();
+  }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadSongs() async {
@@ -44,7 +59,12 @@ class _SongsScreenState extends State<SongsScreen> {
       _error = null;
     });
     try {
+      final userId = await _auth.getUserId();
       final songs = await _api.getSongs();
+      if (userId != null) {
+        final favs = await _api.getFavorites(userId: userId);
+        FavoritesNotifier.instance.setFavorites(favs);
+      }
       setState(() {
         _songs = songs;
         _loading = false;
@@ -54,6 +74,37 @@ class _SongsScreenState extends State<SongsScreen> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _toggleFavorite(Song song) async {
+    final userId = await _auth.getUserId();
+    if (userId == null) return;
+
+    final isFav = FavoritesNotifier.instance.favoritedIds.contains(song.id);
+
+    if (isFav) {
+      final removed = FavoritesNotifier.instance.remove(song.id);
+      try {
+        await _api.removeFavorite(userId: userId, songId: song.id);
+      } catch (_) {
+        if (removed != null) FavoritesNotifier.instance.add(removed);
+      }
+    } else {
+      final tempFav = Favorite(
+        userId: userId,
+        songId: song.id,
+        title: song.title,
+        year: song.year,
+        language: song.language,
+        artistName: song.artistName,
+      );
+      FavoritesNotifier.instance.add(tempFav);
+      try {
+        await _api.addFavorite(userId: userId, songId: song.id);
+      } catch (_) {
+        FavoritesNotifier.instance.remove(song.id);
+      }
     }
   }
 
@@ -88,7 +139,6 @@ class _SongsScreenState extends State<SongsScreen> {
     );
   }
 
-  // ── Shimmer skeleton ────────────────────────────────────────────────────────
   Widget _buildShimmer() {
     return Shimmer.fromColors(
       baseColor: Colors.white.withValues(alpha: 0.05),
@@ -108,9 +158,9 @@ class _SongsScreenState extends State<SongsScreen> {
     );
   }
 
-  // ── Liste avec pull-to-refresh ──────────────────────────────────────────────
   Widget _buildList() {
     final songs = _songs!;
+    final favIds = FavoritesNotifier.instance.favoritedIds;
     final filtered = _searchQuery.isEmpty
         ? songs
         : songs
@@ -137,7 +187,12 @@ class _SongsScreenState extends State<SongsScreen> {
         itemBuilder: (context, index) {
           final song = filtered[index];
           final color = _colorForId(song.id);
-          return _SongTile(song: song, accentColor: color);
+          return _SongTile(
+            song: song,
+            accentColor: color,
+            isFavorited: favIds.contains(song.id),
+            onToggleFavorite: () => _toggleFavorite(song),
+          );
         },
       ),
     );
@@ -148,77 +203,103 @@ class _SongsScreenState extends State<SongsScreen> {
 class _SongTile extends StatelessWidget {
   final Song song;
   final Color accentColor;
-  const _SongTile({required this.song, required this.accentColor});
+  final bool isFavorited;
+  final VoidCallback onToggleFavorite;
+
+  const _SongTile({
+    required this.song,
+    required this.accentColor,
+    required this.isFavorited,
+    required this.onToggleFavorite,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Sous-titre : "Artiste • Année • Langue"
     final parts = <String>[
       if (song.artistName != null) song.artistName!,
       if (song.year != null) '${song.year}',
     ];
     final subtitle = parts.join(' • ');
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      splashColor: accentColor.withValues(alpha: 0.2),
-      highlightColor: Colors.transparent,
-      onTap: () {},
-      child: GlassCard(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Icône musicale
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [accentColor, accentColor.withValues(alpha: 0.4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [accentColor, accentColor.withValues(alpha: 0.4)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: const Icon(Icons.music_note, color: Colors.white, size: 22),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 14),
+            child: const Icon(Icons.music_note, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
 
-            // Titre + sous-titre
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  song.title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.3,
+                    color: kTextPri,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    song.title,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.3,
-                      color: kTextPri,
-                    ),
+                    subtitle,
+                    style: GoogleFonts.inter(fontSize: 12, color: kTextSec),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(fontSize: 12, color: kTextSec),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          if (song.language != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _LangBadge(language: song.language!),
+            ),
+
+          GestureDetector(
+            onTap: onToggleFavorite,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: isFavorited
+                    ? kPrimary.withValues(alpha: 0.15)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isFavorited
+                      ? kPrimary.withValues(alpha: 0.35)
+                      : Colors.white.withValues(alpha: 0.10),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                isFavorited ? Icons.favorite : Icons.favorite_border,
+                color: isFavorited ? kPrimary : kTextSec,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 10),
-
-            // Badge langue cyan
-            if (song.language != null)
-              _LangBadge(language: song.language!),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

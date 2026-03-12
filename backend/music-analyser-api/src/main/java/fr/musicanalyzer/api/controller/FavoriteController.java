@@ -1,6 +1,6 @@
 package fr.musicanalyzer.api.controller;
 
-import fr.musicanalyzer.api.model.FavoriteEntity;
+import fr.musicanalyzer.api.dto.FavoriteDto;
 import fr.musicanalyzer.api.service.FavoriteService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,15 +21,15 @@ public class FavoriteController {
     }
 
     @GetMapping
-    public List<FavoriteEntity> getFavorites(@RequestParam Integer userId) {
+    public List<FavoriteDto> getFavorites(@RequestParam Integer userId) {
         return favoriteService.getFavorites(userId);
     }
 
     @PostMapping
-    public ResponseEntity<FavoriteEntity> addFavorite(@RequestBody Map<String, Long> body) {
+    public ResponseEntity<FavoriteDto> addFavorite(@RequestBody Map<String, Long> body) {
         Integer userId = body.get("userId").intValue();
         Long songId = body.get("songId");
-        Optional<FavoriteEntity> result = favoriteService.addFavorite(userId, songId);
+        Optional<FavoriteDto> result = favoriteService.addFavorite(userId, songId);
         return result
                 .map(f -> ResponseEntity.status(HttpStatus.CREATED).body(f))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());

@@ -31,4 +31,4 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 
 -- Donnée de test
-INSERT INTO users (username, password, role) VALUES ('admin', 'admin', 'ADMIN') ON CONFLICT DO NOTHING;
+INSERT INTO users (username, password, role) VALUES ('admin', '$2b$10$tVUY1yNJ2yQ2aOYhWVBlfOCoYCRKaGJYgkcDZm5GeNIyDWDJxnpaa', 'ADMIN') ON CONFLICT DO NOTHING;

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../main.dart' show kPrimary, kSecondary, kTextPri, kTextSec;
 import '../models/favorite.dart';
-import '../models/song.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../state/favorites_notifier.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/shared.dart';
 
@@ -16,15 +17,25 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final ApiService _api = ApiService();
-  List<Favorite>? _favorites;
-  Map<int, Song>? _songsById;
+  final AuthService _auth = AuthService();
   String? _error;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    FavoritesNotifier.instance.addListener(_onFavoritesChanged);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    FavoritesNotifier.instance.removeListener(_onFavoritesChanged);
+    super.dispose();
+  }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadData() async {
@@ -33,20 +44,31 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       _error = null;
     });
     try {
-      final favFuture  = _api.getFavorites(userId: 1);
-      final songFuture = _api.getSongs(size: 200);
-      final favorites  = await favFuture;
-      final songs      = await songFuture;
-      setState(() {
-        _favorites = favorites;
-        _songsById = {for (final s in songs) s.id: s};
-        _loading   = false;
-      });
+      final userId = await _auth.getUserId();
+      if (userId == null) {
+        FavoritesNotifier.instance.setFavorites([]);
+        setState(() => _loading = false);
+        return;
+      }
+      final favorites = await _api.getFavorites(userId: userId);
+      FavoritesNotifier.instance.setFavorites(favorites);
+      setState(() => _loading = false);
     } catch (e) {
       setState(() {
-        _error   = e.toString();
+        _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _remove(Favorite fav) async {
+    final userId = await _auth.getUserId();
+    if (userId == null) return;
+    final removed = FavoritesNotifier.instance.remove(fav.songId);
+    try {
+      await _api.removeFavorite(userId: userId, songId: fav.songId);
+    } catch (_) {
+      if (removed != null) FavoritesNotifier.instance.add(removed);
     }
   }
 
@@ -58,7 +80,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         children: [
           const ScreenTitle(title: 'Favoris'),
           const SizedBox(height: 8),
-
           Expanded(child: _buildBody()),
         ],
       ),
@@ -69,7 +90,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (_loading) return const LoadingState();
     if (_error != null) return ErrorState(message: _error!);
 
-    final favorites = _favorites!;
+    final favorites = FavoritesNotifier.instance.favorites;
     if (favorites.isEmpty) {
       return const EmptyState(
         icon: Icons.favorite_border,
@@ -86,12 +107,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         itemCount: favorites.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final fav  = favorites[index];
-          final song = _songsById?[fav.songId];
+          final fav = favorites[index];
           return _FavoriteTile(
             favorite: fav,
-            song: song,
             animIndex: index,
+            onRemove: () => _remove(fav),
           );
         },
       ),
@@ -102,13 +122,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 // ── Tile favori ───────────────────────────────────────────────────────────────
 class _FavoriteTile extends StatefulWidget {
   final Favorite favorite;
-  final Song? song;
   final int animIndex;
+  final VoidCallback onRemove;
 
   const _FavoriteTile({
     required this.favorite,
-    required this.song,
     required this.animIndex,
+    required this.onRemove,
   });
 
   @override
@@ -149,15 +169,14 @@ class _FavoriteTileState extends State<_FavoriteTile>
 
   @override
   Widget build(BuildContext context) {
-    final song   = widget.song;
-    final title  = song?.title       ?? 'Chanson #${widget.favorite.songId}';
-    final artist = song?.artistName  ?? 'Artiste inconnu';
-    final year   = song?.year;
-    final lang   = song?.language;
+    final fav = widget.favorite;
+    final title = fav.title ?? 'Chanson #${fav.songId}';
+    final artist = fav.artistName ?? '';
+    final year = fav.year;
+    final lang = fav.language;
 
-    // Sous-titre : "Artiste • Année"
     final subtitleParts = <String>[
-      artist,
+      if (artist.isNotEmpty) artist,
       if (year != null) '$year',
     ];
     final subtitle = subtitleParts.join(' • ');
@@ -166,96 +185,78 @@ class _FavoriteTileState extends State<_FavoriteTile>
       opacity: _opacity,
       child: SlideTransition(
         position: _slide,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          splashColor: kPrimary.withValues(alpha: 0.2),
-          highlightColor: Colors.transparent,
-          onTap: () {},
-          child: GlassCard(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Icône musicale gradient violet
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        kPrimary,
-                        kPrimary.withValues(alpha: 0.45),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
+        child: GlassCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [kPrimary, kPrimary.withValues(alpha: 0.45)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: const Icon(
-                    Icons.music_note,
-                    color: Colors.white,
-                    size: 22,
-                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(width: 14),
+                child: const Icon(Icons.music_note, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
 
-                // Titre + sous-titre
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.3,
-                          color: kTextPri,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                        color: kTextPri,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: kTextSec,
-                        ),
+                        style: GoogleFonts.inter(fontSize: 12, color: kTextSec),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 10),
+              ),
+              const SizedBox(width: 10),
 
-                // Badge langue cyan (si dispo)
-                if (lang != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _LangBadge(language: lang),
-                  ),
+              if (lang != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _LangBadge(language: lang),
+                ),
 
-                // Cœur rempli violet
-                Container(
+              GestureDetector(
+                onTap: widget.onRemove,
+                child: Container(
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: 0.15),
+                    color: Colors.red.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: kPrimary.withValues(alpha: 0.35),
+                      color: Colors.red.withValues(alpha: 0.30),
                       width: 1,
                     ),
                   ),
-                  child: const Icon(
-                    Icons.favorite,
-                    color: kPrimary,
-                    size: 18,
-                  ),
+                  child: const Icon(Icons.delete_outline,
+                      color: Colors.redAccent, size: 18),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -275,10 +276,7 @@ class _LangBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: kSecondary.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: kSecondary.withValues(alpha: 0.35),
-          width: 1,
-        ),
+        border: Border.all(color: kSecondary.withValues(alpha: 0.35), width: 1),
       ),
       child: Text(
         language.toUpperCase(),

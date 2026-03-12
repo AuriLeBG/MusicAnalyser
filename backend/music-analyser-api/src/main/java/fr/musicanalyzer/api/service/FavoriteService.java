@@ -1,5 +1,6 @@
 package fr.musicanalyzer.api.service;
 
+import fr.musicanalyzer.api.dto.FavoriteDto;
 import fr.musicanalyzer.api.model.FavoriteEntity;
 import fr.musicanalyzer.api.model.FavoriteId;
 import fr.musicanalyzer.api.model.SongEntity;
@@ -12,6 +13,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,18 +39,20 @@ public class FavoriteService {
                 .register(meterRegistry);
     }
 
-    public List<FavoriteEntity> getFavorites(Integer userId) {
+    public List<FavoriteDto> getFavorites(Integer userId) {
         log.info("Fetching favorites for userId={}", userId);
-        return favoriteRepository.findById_UserId(userId);
+        return favoriteRepository.findById_UserId(userId).stream()
+                .map(this::toDto)
+                .toList();
     }
 
-    /** @return empty si user ou song introuvable, ou si doublon */
-    public Optional<FavoriteEntity> addFavorite(Integer userId, Long songId) {
+    @Transactional
+    public Optional<FavoriteDto> addFavorite(Integer userId, Long songId) {
         log.info("Adding favorite userId={} songId={}", userId, songId);
         Optional<User> user = userRepository.findById(userId);
-        Optional<SongEntity> song = songRepository.findById(songId);
+        Optional<SongEntity> songOpt = songRepository.findById(songId);
 
-        if (user.isEmpty() || song.isEmpty()) {
+        if (user.isEmpty() || songOpt.isEmpty()) {
             return Optional.empty();
         }
 
@@ -60,11 +64,14 @@ public class FavoriteService {
         FavoriteEntity favorite = new FavoriteEntity();
         favorite.setId(favoriteId);
         favorite.setUser(user.get());
-        favorite.setSong(song.get());
-        return Optional.of(favoriteRepository.save(favorite));
+        favorite.setSong(songOpt.get());
+        favoriteRepository.save(favorite);
+
+        SongEntity song = songOpt.get();
+        String artistName = song.getArtist() != null ? song.getArtist().getName() : null;
+        return Optional.of(new FavoriteDto(userId, songId, song.getTitle(), song.getYear(), song.getLanguage(), artistName));
     }
 
-    /** @return true si supprimé, false si introuvable */
     public boolean removeFavorite(Integer userId, Long songId) {
         log.info("Removing favorite userId={} songId={}", userId, songId);
         FavoriteId favoriteId = new FavoriteId(userId, songId);
@@ -73,5 +80,14 @@ public class FavoriteService {
         }
         favoriteRepository.deleteById(favoriteId);
         return true;
+    }
+
+    private FavoriteDto toDto(FavoriteEntity f) {
+        SongEntity song = f.getSong();
+        String artistName = (song != null && song.getArtist() != null) ? song.getArtist().getName() : null;
+        String title = song != null ? song.getTitle() : null;
+        Integer year = song != null ? song.getYear() : null;
+        String language = song != null ? song.getLanguage() : null;
+        return new FavoriteDto(f.getId().getUserId(), f.getId().getSongId(), title, year, language, artistName);
     }
 }

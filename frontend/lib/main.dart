@@ -5,6 +5,8 @@ import 'screens/artists_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/songs_screen.dart';
 import 'screens/analytics_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const kBg       = Color(0xFF08080F);
@@ -65,7 +67,20 @@ class MusicAnalyserApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const DashboardScreen(),
+      home: FutureBuilder<bool>(
+        future: AuthService().isLoggedIn(),
+        builder: (ctx, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              backgroundColor: kBg,
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return snap.data == true
+              ? const DashboardScreen()
+              : const LoginScreen();
+        },
+      ),
     );
   }
 }
@@ -190,6 +205,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontSize: 20,
                   ),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout, color: kTextSec, size: 20),
+                tooltip: 'Déconnexion',
+                onPressed: () async {
+                  await AuthService().logout();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+            ],
           ),
           body: _AppBackground(
             child: Row(
