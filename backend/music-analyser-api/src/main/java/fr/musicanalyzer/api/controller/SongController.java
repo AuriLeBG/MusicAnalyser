@@ -23,6 +23,12 @@ public class SongController {
         return Map.of("status", result);
     }
 
+    @GetMapping("/random-fail-retry")
+    public Map<String, String> randomFailRetry() {
+        String result = songService.randomFailWithRetry();
+        return Map.of("status", result);
+    }
+
     @GetMapping
     public Page<SongEntity> getSongs(
             @RequestParam(defaultValue = "0") int page,

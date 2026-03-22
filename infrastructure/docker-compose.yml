@@ -67,6 +67,9 @@ services:
     ports:
       - '3000:3000' # UI, credentials: admin / admin
       - '4318:4318' # OTel collector HTTP port
+    volumes:
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
 
   # --- BACKEND SPRING BOOT (HOT RELOAD) ---
   backend:
