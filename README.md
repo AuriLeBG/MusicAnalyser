@@ -29,6 +29,93 @@ capable de voir les logs par composants, les traces des appels HTTP et les métr
 est nécessaire).
 On réalisera un endpoint qui fail afin de voir les retries dans les traces.
 
+## Lancer le projet
+
+### Prérequis
+
+- Docker
+
+> Tout est conteneurisé : aucune dépendance locale à installer.
+
+### Démarrage
+
+```bash
+cd infrastructure
+docker compose up -d
+```
+
+Le premier démarrage prend quelques minutes : le data-loader importe automatiquement le dataset CSV dans PostgreSQL et ClickHouse, puis s'éteint. Le backend démarre ensuite avec hot reload.
+
+### Services et URLs
+
+| Service | URL | Identifiants |
+|---------|-----|-------------|
+| **Frontend** (Flutter web) | http://localhost | — |
+| **API** (Spring Boot) | http://localhost:8080 | — |
+| **Grafana** (monitoring) | http://localhost:3000 | admin / admin |
+| PostgreSQL | localhost:5432 | devUser / devPassword |
+| ClickHouse | localhost:8123 | devUser / devPassword |
+
+### Ordre de démarrage automatique
+
+```
+postgres + clickhouse + grafana  →  data-loader (one-shot)  →  backend  →  frontend
+```
+
+Le data-loader s'éteint après import — c'est normal.
+
+### Compte de test
+
+```
+POST http://localhost:8080/api/auth/login
+{ "username": "admin", "password": "admin" }
+```
+
+Retourne un JWT Bearer token à utiliser pour les routes `/api/favorites/**`.
+
+### Endpoints API disponibles
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| POST | `/api/auth/login` | — | Connexion |
+| POST | `/api/auth/register` | — | Inscription |
+| GET | `/api/artists` | — | Liste / recherche d'artistes |
+| GET | `/api/artists/{id}/songs` | — | Chansons d'un artiste |
+| GET | `/api/songs` | — | Catalogue paginé |
+| GET | `/api/analytics/views-by-year` | — | Tendances par année |
+| GET | `/api/analytics/top-artists` | — | Top artistes |
+| GET | `/api/analytics/top-genres` | — | Genres populaires |
+| GET | `/api/songs/random-fail` | — | Endpoint qui échoue aléatoirement (démo OTel) |
+| GET | `/api/songs/random-fail-retry` | — | Même chose avec retry automatique (3 tentatives) |
+| GET | `/api/favorites` | Bearer | Favoris de l'utilisateur |
+| POST | `/api/favorites` | Bearer | Ajouter un favori |
+| DELETE | `/api/favorites/{songId}` | Bearer | Supprimer un favori |
+
+### Monitoring Grafana
+
+Grafana reçoit automatiquement les traces HTTP, logs et métriques custom du backend via OpenTelemetry (port 4318).
+Le dashboard **"MusicAnalyser — Métriques Custom"** est provisionné automatiquement au démarrage.
+
+### Commandes utiles
+
+```bash
+# Voir les logs en temps réel
+docker compose logs -f backend
+docker compose logs -f data-loader   # vérifier l'import des données
+
+# Rebuild après modification du code
+docker compose up -d --build backend
+docker compose up -d --build frontend
+
+# Statut des containers
+docker compose ps
+
+# Reset complet (supprime les données — reimporte au prochain up)
+docker compose down -v
+```
+
+---
+
 ## Rendu
 
 - [ ] schéma n tier
